@@ -1246,6 +1246,7 @@ function renderV1() {
 // VIEW 2 — VACANTES ACTIVAS
 // ════════════════════════════════════════════
 let chartV2Semaforo = null;
+let chartV2Familia = null;
 
 function renderV2() {
   const d = getV2Filtered();
@@ -1310,6 +1311,10 @@ function renderV2() {
         <div class="chart-title">Funnel del Proceso</div>
         <div class="chart-wrap tall" id="ch-v2-funnel-wrap"></div>
       </div>
+      <div class="chart-card wide">
+        <div class="chart-title">Vacantes Activas por Familia de Puesto — Semáforo</div>
+        <div class="chart-wrap tall"><canvas id="ch-v2-familia-semaforo"></canvas></div>
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -1361,6 +1366,39 @@ function renderV2() {
         { label: '🟡 Atención', data: unAmarillo, backgroundColor: COLORS.yellow, borderRadius: 2 },
         { label: '🔴 Urgente', data: unNaranja, backgroundColor: COLORS.orange, borderRadius: 2 },
         { label: '🚨 Crítico', data: unCritico, backgroundColor: COLORS.red, borderRadius: 2 },
+      ]
+    },
+    options: {
+      ...chartDefaults(),
+      indexAxis: 'y',
+      scales: {
+        x: { ...axisStyle(), beginAtZero: true, stacked: true },
+        y: { ...axisStyle(), stacked: true }
+      },
+      plugins: {
+        ...chartDefaults().plugins,
+        legend: { ...chartDefaults().plugins.legend, position: 'bottom' }
+      }
+    }
+  });
+
+  // Familia de puesto stacked semaforo
+  if (typeof chartV2Familia !== 'undefined' && chartV2Familia) { chartV2Familia.destroy(); chartV2Familia = null; }
+  const familias = [...new Set(d.map(x => x.familia).filter(Boolean))].sort();
+  const famVerde   = familias.map(f => d.filter(x => x.familia===f && getAgingClass(x.diasApertura)==='green').length);
+  const famAmarillo = familias.map(f => d.filter(x => x.familia===f && getAgingClass(x.diasApertura)==='yellow').length);
+  const famNaranja  = familias.map(f => d.filter(x => x.familia===f && getAgingClass(x.diasApertura)==='orange').length);
+  const famCritico  = familias.map(f => d.filter(x => x.familia===f && getAgingClass(x.diasApertura)==='critical').length);
+
+  chartV2Familia = new Chart(document.getElementById('ch-v2-familia-semaforo'), {
+    type: 'bar',
+    data: {
+      labels: familias,
+      datasets: [
+        { label: '🟢 En tiempo (≤30d)',  data: famVerde,    backgroundColor: COLORS.green,  borderRadius: 2 },
+        { label: '🟡 Atención (31-60d)', data: famAmarillo, backgroundColor: COLORS.yellow, borderRadius: 2 },
+        { label: '🔴 Urgente (61-90d)',  data: famNaranja,  backgroundColor: COLORS.orange, borderRadius: 2 },
+        { label: '🚨 Crítico (91d+)',    data: famCritico,  backgroundColor: COLORS.red,    borderRadius: 2 },
       ]
     },
     options: {
