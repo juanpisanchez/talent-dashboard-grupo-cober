@@ -6,6 +6,7 @@
 <title>Talent Acquisition · Grupo Cober</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -838,6 +839,9 @@ let currentSort = { col: null, asc: true };
 
 const SELECTORS = ['Franco','Jose','Ema','Fer','Juanpi'];
 
+// Register datalabels plugin globally
+Chart.register(ChartDataLabels);
+
 const COLORS = {
   accent: '#4f8ef7',
   accent2: '#7c5cfc',
@@ -1350,8 +1354,10 @@ function renderV2() {
   const allActivas = DATA.filter(x => x.statusGeneral === 'En curso' || x.statusGeneral === 'En proceso de Ingreso');
   const filteredActivas = d; // ya filtradas
 
-  // Build per-UN semaforo counts
-  const uns = [...new Set(filteredActivas.map(x => x.un).filter(Boolean))].sort();
+  // Build per-UN semaforo counts — sorted desc by total
+  const unsRaw = [...new Set(filteredActivas.map(x => x.un).filter(Boolean))];
+  const unsSorted = unsRaw.map(u => ({u, t: filteredActivas.filter(x=>x.un===u).length})).sort((a,b)=>b.t-a.t);
+  const uns = unsSorted.map(x => x.u);
   const unVerde = uns.map(u => filteredActivas.filter(x => x.un===u && getAgingClass(x.diasApertura)==='green').length);
   const unAmarillo = uns.map(u => filteredActivas.filter(x => x.un===u && getAgingClass(x.diasApertura)==='yellow').length);
   const unNaranja = uns.map(u => filteredActivas.filter(x => x.un===u && getAgingClass(x.diasApertura)==='orange').length);
@@ -1384,7 +1390,11 @@ function renderV2() {
 
   // Familia de puesto stacked semaforo
   if (typeof chartV2Familia !== 'undefined' && chartV2Familia) { chartV2Familia.destroy(); chartV2Familia = null; }
-  const familias = [...new Set(d.map(x => x.familia).filter(Boolean))].sort();
+  // Sort familias by total desc
+  const famRaw = [...new Set(d.map(x => x.familia).filter(Boolean))];
+  const famTotals = famRaw.map(f => d.filter(x => x.familia===f).length);
+  const famSorted = famRaw.map((f,i) => ({f, t: famTotals[i]})).sort((a,b)=>b.t-a.t);
+  const familias = famSorted.map(x => x.f);
   const famVerde   = familias.map(f => d.filter(x => x.familia===f && getAgingClass(x.diasApertura)==='green').length);
   const famAmarillo = familias.map(f => d.filter(x => x.familia===f && getAgingClass(x.diasApertura)==='yellow').length);
   const famNaranja  = familias.map(f => d.filter(x => x.familia===f && getAgingClass(x.diasApertura)==='orange').length);
@@ -1410,7 +1420,14 @@ function renderV2() {
       },
       plugins: {
         ...chartDefaults().plugins,
-        legend: { ...chartDefaults().plugins.legend, position: 'bottom' }
+        legend: { ...chartDefaults().plugins.legend, position: 'bottom' },
+        datalabels: {
+          color: '#0a0c10',
+          font: { family: 'DM Mono', size: 9, weight: '600' },
+          anchor: 'center',
+          align: 'center',
+          formatter: v => v > 0 ? v : '',
+        }
       }
     }
   });
@@ -1894,7 +1911,8 @@ function chartDefaults() {
     maintainAspectRatio: false,
     plugins: {
       legend: { labels: { color: '#6b7280', font: { family: 'DM Mono', size: 11 }, boxWidth: 12, padding: 12 } },
-      tooltip: { backgroundColor: '#181c24', titleColor: '#e8eaf0', bodyColor: '#9ca3af', borderColor: '#1e2330', borderWidth: 1, padding: 10 }
+      tooltip: { backgroundColor: '#181c24', titleColor: '#e8eaf0', bodyColor: '#9ca3af', borderColor: '#1e2330', borderWidth: 1, padding: 10 },
+      datalabels: { display: false } // off by default — enabled per-chart
     }
   };
 }
@@ -1907,6 +1925,10 @@ function axisStyle() {
 }
 
 function makeBarH(id, labels, data) {
+  // Sort desc by value
+  const paired = labels.map((l,i) => ({l, v: data[i]})).sort((a,b) => b.v - a.v);
+  labels = paired.map(x => x.l);
+  data = paired.map(x => x.v);
   return new Chart(document.getElementById(id), {
     type: 'bar',
     data: {
@@ -1916,7 +1938,18 @@ function makeBarH(id, labels, data) {
     options: {
       ...chartDefaults(),
       indexAxis: 'y',
-      plugins: { ...chartDefaults().plugins, legend: { display: false } },
+      plugins: {
+        ...chartDefaults().plugins,
+        legend: { display: false },
+        datalabels: {
+          color: '#e8eaf0',
+          font: { family: 'DM Mono', size: 10, weight: '500' },
+          anchor: 'end',
+          align: 'start',
+          formatter: v => v > 0 ? v : '',
+          clamp: true,
+        }
+      },
       scales: {
         x: { ...axisStyle(), beginAtZero: true },
         y: { ...axisStyle() }
