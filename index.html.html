@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talent Acquisition · Grupo Cober</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2330;
+    --accent: #4f8ef7;
+    --accent2: #7c5cfc;
+    --text: #e8eaf0;
+    --text-muted: #6b7280;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --red: #ef4444;
+    --red-dark: #dc2626;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo span {
+    color: var(--accent);
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .last-updated {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ─── NAV ─── */
+  .nav {
+    display: flex;
+    gap: 4px;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+  }
+
+  .nav-btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+  }
+
+  .nav-btn:hover { color: var(--text); background: var(--surface2); }
+
+  .nav-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  /* ─── MAIN CONTENT ─── */
+  .main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ─── SECTION HEADER ─── */
+  .section-header {
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-family: var(--font-head);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .section-sub {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  /* ─── FILTERS BAR ─── */
+  .filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+
+  .filter-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  select, input[type="date"] {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  select:focus, input[type="date"]:focus { border-color: var(--accent); }
+
+  .filter-reset {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    align-self: flex-end;
+    transition: all 0.2s;
+  }
+  .filter-reset:hover { color: var(--text); border-color: var(--text-muted); }
+
+  /* ─── KPI CARDS ─── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, var(--accent));
+  }
+
+  .kpi-card:hover { border-color: var(--accent-color, var(--accent)); }
+
+  .kpi-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: var(--font-head);
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--accent-color, var(--text));
+  }
+
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  /* ─── CHARTS GRID ─── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .chart-card.wide { grid-column: 1 / -1; }
+
+  .chart-title {
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+    letter-spacing: -0.2px;
+  }
+
+  .chart-wrap { position: relative; height: 240px; }
+  .chart-wrap.tall { height: 300px; }
+
+  /* ─── SEMÁFORO TABLE ─── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .table-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-title {
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .table-count {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  thead tr {
+    background: var(--surface2);
+  }
+
+  th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  th:hover { color: var(--text); }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover { background: var(--surface2); }
+
+  /* ─── SEMÁFORO BADGE ─── */
+  .semaforo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .sem-green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .sem-yellow { background: rgba(234,179,8,0.15); color: var(--yellow); }
+  .sem-orange { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .sem-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .sem-critical { background: rgba(220,38,38,0.2); color: #ff6b6b; }
+
+  .sem-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sem-green .sem-dot { background: var(--green); }
+  .sem-yellow .sem-dot { background: var(--yellow); }
+  .sem-orange .sem-dot { background: var(--orange); }
+  .sem-red .sem-dot { background: var(--red); }
+  .sem-critical .sem-dot { background: #ff6b6b; animation: pulse 1s infinite; }
+
+  /* ─── STATUS BADGE ─── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .badge-blue { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .badge-purple { background: rgba(124,92,252,0.15); color: var(--accent2); }
+  .badge-gray { background: rgba(107,114,128,0.15); color: var(--text-muted); }
+
+  /* ─── PERFORMANCE BARS ─── */
+  .perf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .perf-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .perf-name {
+    font-family: var(--font-head);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .perf-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 11px;
+  }
+
+  .perf-row-label { color: var(--text-muted); width: 100px; flex-shrink: 0; }
+
+  .perf-bar-wrap {
+    flex: 1;
+    background: var(--border);
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+  }
+
+  .perf-bar {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+    transition: width 0.8s cubic-bezier(0.23,1,0.32,1);
+  }
+
+  .perf-val { min-width: 30px; text-align: right; }
+
+  /* ─── LOADING ─── */
+  #loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    gap: 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── ONEDRIVE CONFIG ─── */
+  .config-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .config-title {
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .config-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  .config-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  .config-input-wrap { flex: 1; }
+
+  input[type="text"] {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 14px;
+    border-radius: 6px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+
+  input[type="text"]:focus { border-color: var(--accent); }
+
+  .btn-primary {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 9px 20px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-primary:hover { opacity: 0.85; }
+
+  .btn-secondary {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 9px 16px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover { color: var(--text); border-color: var(--text-muted); }
+
+  .msg-error { color: var(--red); font-size: 12px; margin-top: 8px; }
+  .msg-ok { color: var(--green); font-size: 12px; margin-top: 8px; }
+
+  /* ─── FUNNEL ─── */
+  .funnel-wrap { padding: 8px 0; }
+
+  .funnel-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .funnel-label { font-size: 11px; color: var(--text-muted); width: 200px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .funnel-bar-wrap {
+    flex: 1;
+    background: var(--border);
+    border-radius: 3px;
+    height: 20px;
+    overflow: hidden;
+  }
+
+  .funnel-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.23,1,0.32,1);
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-size: 10px;
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .funnel-count { font-size: 12px; font-weight: 600; min-width: 24px; text-align: right; }
+
+  /* ─── EMPTY STATE ─── */
+  .empty {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .main { padding: 16px; }
+    .topbar, .nav { padding: 12px 16px; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .charts-grid .chart-card.wide { grid-column: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    Talent Acquisition · <span>Grupo Cober</span>
+  </div>
+  <div class="last-updated" id="lastUpdated">Cargando datos...</div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="switchView('v1')">📊 Dashboard</button>
+  <button class="nav-btn" onclick="switchView('v2')">🚦 Vacantes Activas</button>
+  <button class="nav-btn" onclick="switchView('v3')">📈 Historial de Cierres</button>
+  <button class="nav-btn" onclick="switchView('v4')">👥 Performance del Equipo</button>
+  <button class="nav-btn" onclick="switchView('v5')">⚙️ Configuración</button>
+</div>
+
+<div class="main">
+
+  <!-- ═══════════════════════════════════════════
+       VIEW 1 — DASHBOARD PRINCIPAL
+  ═══════════════════════════════════════════ -->
+  <div id="v1" class="view active">
+    <div class="section-header">
+      <div class="section-title">Dashboard General</div>
+      <div class="section-sub">Resumen ejecutivo del área de Talent Acquisition</div>
+    </div>
+
+    <!-- Global Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <span class="filter-label">Selector</span>
+        <select id="f1-selector" onchange="renderV1()">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Unidad de Negocio</span>
+        <select id="f1-un" onchange="renderV1()">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Familia de Puesto</span>
+        <select id="f1-familia" onchange="renderV1()">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <button class="filter-reset" onclick="resetFilters('v1')">↺ Limpiar</button>
+    </div>
+
+    <div id="v1-content">
+      <div id="loading"><div class="spinner"></div><span>Cargando datos...</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW 2 — VACANTES ACTIVAS + SEMÁFORO
+  ═══════════════════════════════════════════ -->
+  <div id="v2" class="view">
+    <div class="section-header">
+      <div class="section-title">Vacantes Activas</div>
+      <div class="section-sub">Semáforo de aging · Verde ≤30d · Amarillo 31-60d · Rojo 61-90d · Crítico 91d+</div>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <span class="filter-label">Selector</span>
+        <select id="f2-selector" onchange="renderV2()"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Unidad de Negocio</span>
+        <select id="f2-un" onchange="renderV2()"><option value="">Todas</option></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Familia de Puesto</span>
+        <select id="f2-familia" onchange="renderV2()"><option value="">Todas</option></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Aging</span>
+        <select id="f2-aging" onchange="renderV2()">
+          <option value="">Todos</option>
+          <option value="green">🟢 En tiempo (≤30d)</option>
+          <option value="yellow">🟡 Atención (31-60d)</option>
+          <option value="orange">🔴 Urgente (61-90d)</option>
+          <option value="critical">🚨 Crítico (91d+)</option>
+        </select>
+      </div>
+      <button class="filter-reset" onclick="resetFilters('v2')">↺ Limpiar</button>
+    </div>
+
+    <div id="v2-content"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW 3 — HISTORIAL DE CIERRES
+  ═══════════════════════════════════════════ -->
+  <div id="v3" class="view">
+    <div class="section-header">
+      <div class="section-title">Historial de Cierres</div>
+      <div class="section-sub">Vacantes cubiertas · filtradas por Fecha de Ingreso</div>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <span class="filter-label">Período — Desde</span>
+        <input type="date" id="f3-desde" onchange="renderV3()">
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Período — Hasta</span>
+        <input type="date" id="f3-hasta" onchange="renderV3()">
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Selector</span>
+        <select id="f3-selector" onchange="renderV3()"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Unidad de Negocio</span>
+        <select id="f3-un" onchange="renderV3()"><option value="">Todas</option></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Tipo de Búsqueda</span>
+        <select id="f3-tipo" onchange="renderV3()">
+          <option value="">Todos</option>
+          <option value="Externa">Externa</option>
+          <option value="Interna">Interna</option>
+        </select>
+      </div>
+      <button class="filter-reset" onclick="resetFilters('v3')">↺ Limpiar</button>
+    </div>
+
+    <div id="v3-content"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW 4 — PERFORMANCE DEL EQUIPO
+  ═══════════════════════════════════════════ -->
+  <div id="v4" class="view">
+    <div class="section-header">
+      <div class="section-title">Performance del Equipo</div>
+      <div class="section-sub">Métricas individuales de los selectores</div>
+    </div>
+
+    <div id="v4-content"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VIEW 5 — CONFIGURACIÓN
+  ═══════════════════════════════════════════ -->
+  <div id="v5" class="view">
+    <div class="section-header">
+      <div class="section-title">Configuración</div>
+      <div class="section-sub">Conexión al archivo Excel en OneDrive</div>
+    </div>
+
+    <div class="config-box">
+      <div class="config-title">🔗 URL del archivo en OneDrive</div>
+      <div class="config-desc">
+        Pegá el link directo de descarga de tu Excel en OneDrive.<br>
+        Para obtenerlo: en OneDrive, hacé clic derecho en el archivo → <strong>Copiar vínculo</strong> → asegurate de que diga "Cualquier persona con el vínculo puede ver".<br>
+        Luego reemplazá el final de la URL: cambiá <code>?e=...</code> por <code>?download=1</code>.
+      </div>
+      <div class="config-row">
+        <div class="config-input-wrap">
+          <input type="text" id="onedrive-url" placeholder="https://1drv.ms/x/... o https://onedrive.live.com/..." value="">
+        </div>
+        <button class="btn-primary" onclick="saveAndLoad()">Guardar y Cargar</button>
+        <button class="btn-secondary" onclick="loadDemo()">Usar demo local</button>
+      </div>
+      <div id="config-msg"></div>
+    </div>
+
+    <div class="config-box">
+      <div class="config-title">📋 Estado de la conexión</div>
+      <div id="conn-status" style="font-size:12px;color:var(--text-muted)">Sin configurar</div>
+    </div>
+
+    <div class="config-box">
+      <div class="config-title">ℹ️ Cómo publicar en GitHub Pages</div>
+      <div class="config-desc" style="line-height:1.9">
+        1. Creá un repositorio en GitHub (puede ser privado o público).<br>
+        2. Subí este archivo HTML como <code>index.html</code> en la rama <code>main</code>.<br>
+        3. En el repositorio → Settings → Pages → Source: <strong>Deploy from branch → main → /root</strong>.<br>
+        4. GitHub te dará una URL tipo <code>https://tu-usuario.github.io/nombre-repo</code>.<br>
+        5. Compartí esa URL con tu equipo. El dashboard se actualiza solo al recargar la página.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ════════════════════════════════════════════
+// ESTADO GLOBAL
+// ════════════════════════════════════════════
+let DATA = [];
+let currentSort = { col: null, asc: true };
+
+const SELECTORS = ['Franco','Jose','Ema','Fer','Juanpi'];
+
+const COLORS = {
+  accent: '#4f8ef7',
+  accent2: '#7c5cfc',
+  green: '#22c55e',
+  yellow: '#eab308',
+  orange: '#f97316',
+  red: '#ef4444',
+  muted: '#6b7280'
+};
+
+const CHART_PALETTE = [
+  '#4f8ef7','#7c5cfc','#22c55e','#eab308','#f97316',
+  '#ef4444','#06b6d4','#ec4899','#84cc16','#f59e0b'
+];
+
+// ════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════
+function switchView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+
+  if (DATA.length) {
+    if (id === 'v1') renderV1();
+    if (id === 'v2') renderV2();
+    if (id === 'v3') renderV3();
+    if (id === 'v4') renderV4();
+  }
+}
+
+// ════════════════════════════════════════════
+// ONEDRIVE LOAD
+// ════════════════════════════════════════════
+function saveAndLoad() {
+  const url = document.getElementById('onedrive-url').value.trim();
+  if (!url) { showMsg('Ingresá una URL válida.', 'error'); return; }
+  localStorage.setItem('cober_onedrive_url', url);
+  loadFromUrl(url);
+}
+
+function loadFromUrl(url) {
+  showMsg('Cargando...', 'ok');
+  document.getElementById('conn-status').textContent = 'Conectando...';
+
+  // Convert OneDrive share links to direct download
+  let downloadUrl = url;
+  if (url.includes('1drv.ms') || url.includes('onedrive.live.com')) {
+    if (!url.includes('download=1')) {
+      downloadUrl = url.replace(/\?.*$/, '') + '?download=1';
+    }
+  }
+
+  fetch(downloadUrl)
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.arrayBuffer();
+    })
+    .then(buf => {
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      processWorkbook(wb);
+      showMsg('✓ Datos cargados correctamente.', 'ok');
+      document.getElementById('conn-status').innerHTML =
+        `<span style="color:var(--green)">✓ Conectado</span> · ${DATA.length} registros · ${new Date().toLocaleString('es-AR')}`;
+      document.getElementById('lastUpdated').textContent =
+        `Actualizado: ${new Date().toLocaleTimeString('es-AR')}`;
+    })
+    .catch(err => {
+      showMsg(`Error al cargar: ${err.message}. Revisá que el link sea público y tenga ?download=1 al final.`, 'error');
+      document.getElementById('conn-status').innerHTML = `<span style="color:var(--red)">✗ Error de conexión</span>`;
+    });
+}
+
+function loadDemo() {
+  // Use existing data if already loaded via file
+  showMsg('Usando datos cargados localmente.', 'ok');
+}
+
+function showMsg(text, type) {
+  const el = document.getElementById('config-msg');
+  if (el) {
+    el.textContent = text;
+    el.className = type === 'error' ? 'msg-error' : 'msg-ok';
+  }
+}
+
+// ════════════════════════════════════════════
+// PARSE WORKBOOK
+// ════════════════════════════════════════════
+function processWorkbook(wb) {
+  const ws = wb.Sheets['BASE'];
+  if (!ws) { alert('No se encontró la hoja BASE'); return; }
+
+  const raw = XLSX.utils.sheet_to_json(ws, { defval: null });
+  DATA = raw.map(r => ({
+    vacante: r['N° Vacante'] || '',
+    fechaSolicitud: parseDate(r['Fecha de solicitud']),
+    diasApertura: parseDias(r['Días de apertura']),
+    selector: (r['Selector'] || '').trim(),
+    estadoAprobacion: (r['Estado de aprobación'] || '').trim(),
+    un: (r['Unidad de Negocio'] || '').trim(),
+    sector: (r['Sector'] || '').trim(),
+    familia: (r['Familia de Puesto'] || '').trim(),
+    puesto: (r['Puesto '] || r['Puesto'] || '').trim(),
+    lider: (r['Líder'] || '').trim(),
+    hiringManager: (r['Hiring Manager'] || '').trim(),
+    statusGeneral: (r['Status general'] || '').trim(),
+    statusProceso: (r['Status del proceso '] || r['Status del proceso'] || '').trim(),
+    dificultad: (r['Dificultad'] || '').trim(),
+    prioridad: (r['Prioridad'] || '').trim(),
+    tipoVacante: (r['Tipo de vacante'] || '').trim(),
+    motivoContratacion: (r['Motivo de contratación'] || '').trim(),
+    modalidad: (r['Modalidad de contratación'] || '').trim(),
+    fechaCierre: parseDate(r['Fecha de cierre']),
+    fechaIngreso: parseDate(r['Fecha de Ingreso']),
+    tipoBusqueda: (r['Tipo de Búsqueda'] || '').trim(),
+    fuente: (r['Fuente de selección '] || r['Fuente de selección'] || '').trim(),
+    seleccionado: (r['Nombre del seleccionado/a'] || '').trim(),
+    remuneracion: r['Remuneración acordada'] || '',
+    comentarios: (r['Comentarios'] || '').trim(),
+  }));
+
+  populateFilters();
+  renderV1();
+}
+
+function parseDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  if (typeof val === 'string' && val.length > 5) {
+    const d = new Date(val);
+    return isNaN(d) ? null : d;
+  }
+  return null;
+}
+
+function parseDias(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return Math.round(val);
+  if (typeof val === 'string') {
+    const n = parseInt(val);
+    return isNaN(n) ? null : n;
+  }
+  return null;
+}
+
+// ════════════════════════════════════════════
+// FILTERS — POPULATE
+// ════════════════════════════════════════════
+function populateFilters() {
+  const selectors = [...new Set(DATA.map(d => d.selector).filter(Boolean))].sort();
+  const uns = [...new Set(DATA.map(d => d.un).filter(Boolean))].sort();
+  const familias = [...new Set(DATA.map(d => d.familia).filter(Boolean))].sort();
+
+  fillSelect('f1-selector', selectors);
+  fillSelect('f1-un', uns);
+  fillSelect('f1-familia', familias);
+  fillSelect('f2-selector', selectors);
+  fillSelect('f2-un', uns);
+  fillSelect('f2-familia', familias);
+  fillSelect('f3-selector', selectors);
+  fillSelect('f3-un', uns);
+
+  // Set default date range last 90 days for v3
+  const today = new Date();
+  const ago90 = new Date(); ago90.setDate(today.getDate() - 90);
+  document.getElementById('f3-hasta').value = today.toISOString().slice(0,10);
+  document.getElementById('f3-desde').value = ago90.toISOString().slice(0,10);
+}
+
+function fillSelect(id, vals) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const current = el.value;
+  const first = el.options[0];
+  el.innerHTML = '';
+  el.appendChild(first);
+  vals.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    el.appendChild(o);
+  });
+  el.value = current;
+}
+
+function resetFilters(view) {
+  if (view === 'v1') {
+    document.getElementById('f1-selector').value = '';
+    document.getElementById('f1-un').value = '';
+    document.getElementById('f1-familia').value = '';
+    renderV1();
+  } else if (view === 'v2') {
+    document.getElementById('f2-selector').value = '';
+    document.getElementById('f2-un').value = '';
+    document.getElementById('f2-familia').value = '';
+    document.getElementById('f2-aging').value = '';
+    renderV2();
+  } else if (view === 'v3') {
+    const today = new Date();
+    const ago90 = new Date(); ago90.setDate(today.getDate() - 90);
+    document.getElementById('f3-hasta').value = today.toISOString().slice(0,10);
+    document.getElementById('f3-desde').value = ago90.toISOString().slice(0,10);
+    document.getElementById('f3-selector').value = '';
+    document.getElementById('f3-un').value = '';
+    document.getElementById('f3-tipo').value = '';
+    renderV3();
+  }
+}
+
+// ════════════════════════════════════════════
+// FILTER HELPERS
+// ════════════════════════════════════════════
+function getV1Filtered() {
+  let d = [...DATA];
+  const sel = document.getElementById('f1-selector')?.value;
+  const un = document.getElementById('f1-un')?.value;
+  const fam = document.getElementById('f1-familia')?.value;
+  if (sel) d = d.filter(x => x.selector === sel);
+  if (un) d = d.filter(x => x.un === un);
+  if (fam) d = d.filter(x => x.familia === fam);
+  return d;
+}
+
+function getV2Filtered() {
+  let d = DATA.filter(x =>
+    x.statusGeneral === 'En curso' || x.statusGeneral === 'En proceso de Ingreso'
+  );
+  const sel = document.getElementById('f2-selector')?.value;
+  const un = document.getElementById('f2-un')?.value;
+  const fam = document.getElementById('f2-familia')?.value;
+  const aging = document.getElementById('f2-aging')?.value;
+  if (sel) d = d.filter(x => x.selector === sel);
+  if (un) d = d.filter(x => x.un === un);
+  if (fam) d = d.filter(x => x.familia === fam);
+  if (aging) d = d.filter(x => getAgingClass(x.diasApertura) === aging);
+  // Sort by dias desc
+  d.sort((a, b) => (b.diasApertura || 0) - (a.diasApertura || 0));
+  return d;
+}
+
+function getV3Filtered() {
+  let d = DATA.filter(x => x.statusGeneral === 'Cerrada' && x.fechaIngreso);
+  const desde = document.getElementById('f3-desde')?.value;
+  const hasta = document.getElementById('f3-hasta')?.value;
+  const sel = document.getElementById('f3-selector')?.value;
+  const un = document.getElementById('f3-un')?.value;
+  const tipo = document.getElementById('f3-tipo')?.value;
+  if (desde) d = d.filter(x => x.fechaIngreso >= new Date(desde));
+  if (hasta) { const h = new Date(hasta); h.setHours(23,59,59); d = d.filter(x => x.fechaIngreso <= h); }
+  if (sel) d = d.filter(x => x.selector === sel);
+  if (un) d = d.filter(x => x.un === un);
+  if (tipo) d = d.filter(x => x.tipoBusqueda === tipo);
+  return d;
+}
+
+// ════════════════════════════════════════════
+// VIEW 1 — DASHBOARD PRINCIPAL
+// ════════════════════════════════════════════
+let chartsV1 = {};
+
+function renderV1() {
+  const d = getV1Filtered();
+  const activas = d.filter(x => x.statusGeneral === 'En curso');
+  const enIngreso = d.filter(x => x.statusGeneral === 'En proceso de Ingreso');
+  const standby = d.filter(x => x.statusGeneral === 'StandBy');
+  const cerradas = d.filter(x => x.statusGeneral === 'Cerrada');
+  const canceladas = d.filter(x => x.statusGeneral === 'Cancelada');
+
+  // Avg time to fill (dias apertura for cerradas with numeric dias... use fechas)
+  const tiempos = cerradas.filter(x => x.fechaSolicitud && x.fechaIngreso)
+    .map(x => Math.round((x.fechaIngreso - x.fechaSolicitud) / 86400000));
+  const avgTime = tiempos.length ? Math.round(tiempos.reduce((a,b) => a+b, 0) / tiempos.length) : '--';
+
+  const efectividad = d.length ? Math.round((cerradas.length / d.filter(x => x.statusGeneral !== 'StandBy').length) * 100) : 0;
+
+  const html = `
+    <div class="kpi-grid">
+      <div class="kpi-card" style="--accent-color:var(--accent)">
+        <div class="kpi-label">Activas (En curso)</div>
+        <div class="kpi-value">${activas.length}</div>
+        <div class="kpi-sub">búsquedas en proceso</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--accent2)">
+        <div class="kpi-label">En proceso de ingreso</div>
+        <div class="kpi-value">${enIngreso.length}</div>
+        <div class="kpi-sub">con candidato seleccionado</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--yellow)">
+        <div class="kpi-label">StandBy</div>
+        <div class="kpi-value">${standby.length}</div>
+        <div class="kpi-sub">pausadas</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--green)">
+        <div class="kpi-label">Cerradas</div>
+        <div class="kpi-value">${cerradas.length}</div>
+        <div class="kpi-sub">cubiertas exitosamente</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--orange)">
+        <div class="kpi-label">Canceladas</div>
+        <div class="kpi-value">${canceladas.length}</div>
+        <div class="kpi-sub">sin cobertura</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--green)">
+        <div class="kpi-label">Tiempo promedio cobertura</div>
+        <div class="kpi-value" style="font-size:28px">${avgTime}<span style="font-size:16px;font-weight:400"> días</span></div>
+        <div class="kpi-sub">vacantes cerradas con fecha</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Vacantes por Unidad de Negocio</div>
+        <div class="chart-wrap"><canvas id="ch-un"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Distribución por Familia de Puesto</div>
+        <div class="chart-wrap"><canvas id="ch-familia"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Pipeline — Status General</div>
+        <div class="chart-wrap"><canvas id="ch-status"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Tipo de Vacante</div>
+        <div class="chart-wrap"><canvas id="ch-tipo"></canvas></div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('v1-content').innerHTML = html;
+
+  // Destroy old charts
+  Object.values(chartsV1).forEach(c => c.destroy());
+  chartsV1 = {};
+
+  // Chart — UN
+  const unCounts = countBy(d, 'un');
+  chartsV1.un = makeBarH('ch-un', Object.keys(unCounts), Object.values(unCounts));
+
+  // Chart — Familia
+  const famCounts = countBy(d, 'familia');
+  chartsV1.familia = makeDoughnut('ch-familia', Object.keys(famCounts), Object.values(famCounts));
+
+  // Chart — Status
+  const statusData = {
+    'En curso': activas.length,
+    'En proceso de Ingreso': enIngreso.length,
+    'StandBy': standby.length,
+    'Cerrada': cerradas.length,
+    'Cancelada': canceladas.length
+  };
+  chartsV1.status = makeBarV('ch-status', Object.keys(statusData), Object.values(statusData),
+    [COLORS.accent, COLORS.accent2, COLORS.yellow, COLORS.green, COLORS.orange]);
+
+  // Chart — Tipo vacante
+  const tipoCounts = countBy(d, 'tipoVacante');
+  chartsV1.tipo = makeDoughnut('ch-tipo', Object.keys(tipoCounts), Object.values(tipoCounts));
+}
+
+// ════════════════════════════════════════════
+// VIEW 2 — VACANTES ACTIVAS
+// ════════════════════════════════════════════
+function renderV2() {
+  const d = getV2Filtered();
+
+  const crit = d.filter(x => (x.diasApertura || 0) >= 91).length;
+  const urg = d.filter(x => (x.diasApertura || 0) >= 61 && (x.diasApertura || 0) <= 90).length;
+
+  const rows = d.map(x => {
+    const ag = getAgingClass(x.diasApertura);
+    const badge = agingBadge(x.diasApertura);
+    const stBadge = x.statusGeneral === 'En proceso de Ingreso'
+      ? `<span class="badge badge-purple">En proceso ingreso</span>`
+      : `<span class="badge badge-blue">En curso</span>`;
+    return `
+      <tr>
+        <td><span style="font-family:var(--font-head);font-weight:700">${x.vacante}</span></td>
+        <td>${x.puesto}</td>
+        <td>${x.selector}</td>
+        <td>${x.un}</td>
+        <td>${badge}</td>
+        <td>${x.statusProceso || '-'}</td>
+        <td>${stBadge}</td>
+        <td>${x.dificultad || '-'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const html = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="kpi-card" style="--accent-color:var(--accent);flex:1;min-width:140px">
+        <div class="kpi-label">Total Activas</div>
+        <div class="kpi-value">${d.length}</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--red);flex:1;min-width:140px">
+        <div class="kpi-label">🚨 Críticas (91d+)</div>
+        <div class="kpi-value" style="color:var(--red)">${crit}</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--orange);flex:1;min-width:140px">
+        <div class="kpi-label">🔴 Urgentes (61-90d)</div>
+        <div class="kpi-value" style="color:var(--orange)">${urg}</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-header-bar">
+        <div class="table-title">Semáforo de Aging</div>
+        <div class="table-count">${d.length} vacantes</div>
+      </div>
+      ${d.length === 0 ? '<div class="empty">Sin resultados para los filtros seleccionados</div>' : `
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>N°</th>
+              <th>Puesto</th>
+              <th>Selector</th>
+              <th>Unidad</th>
+              <th>Aging</th>
+              <th>Etapa</th>
+              <th>Status</th>
+              <th>Dificultad</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`}
+    </div>
+  `;
+  document.getElementById('v2-content').innerHTML = html;
+}
+
+function getAgingClass(dias) {
+  if (dias === null || dias === undefined) return 'green';
+  if (dias <= 30) return 'green';
+  if (dias <= 60) return 'yellow';
+  if (dias <= 90) return 'orange';
+  return 'critical';
+}
+
+function agingBadge(dias) {
+  if (dias === null || dias === undefined) return '<span class="semaforo sem-gray">-</span>';
+  const cls = getAgingClass(dias);
+  const labels = { green: '≤30d', yellow: '31-60d', orange: '61-90d', critical: '91d+' };
+  return `<span class="semaforo sem-${cls}"><span class="sem-dot"></span>${dias}d · ${labels[cls]}</span>`;
+}
+
+// ════════════════════════════════════════════
+// VIEW 3 — HISTORIAL DE CIERRES
+// ════════════════════════════════════════════
+let chartsV3 = {};
+
+function renderV3() {
+  const d = getV3Filtered();
+
+  const tiempos = d.filter(x => x.fechaSolicitud && x.fechaIngreso)
+    .map(x => Math.round((x.fechaIngreso - x.fechaSolicitud) / 86400000));
+  const avgTime = tiempos.length ? Math.round(tiempos.reduce((a,b)=>a+b,0)/tiempos.length) : '--';
+  const minTime = tiempos.length ? Math.min(...tiempos) : '--';
+  const maxTime = tiempos.length ? Math.max(...tiempos) : '--';
+
+  const externas = d.filter(x => x.tipoBusqueda === 'Externa').length;
+  const internas = d.filter(x => x.tipoBusqueda === 'Interna').length;
+
+  // Cierres por mes
+  const porMes = {};
+  d.forEach(x => {
+    if (x.fechaIngreso) {
+      const k = x.fechaIngreso.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+      porMes[k] = (porMes[k] || 0) + 1;
+    }
+  });
+
+  const html = `
+    <div class="kpi-grid">
+      <div class="kpi-card" style="--accent-color:var(--green)">
+        <div class="kpi-label">Cierres en el período</div>
+        <div class="kpi-value">${d.length}</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--accent)">
+        <div class="kpi-label">Tiempo promedio cobertura</div>
+        <div class="kpi-value" style="font-size:28px">${avgTime}<span style="font-size:14px;font-weight:400"> días</span></div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--accent2)">
+        <div class="kpi-label">Mínimo / Máximo</div>
+        <div class="kpi-value" style="font-size:22px">${minTime} <span style="font-size:14px;color:var(--text-muted)">/ ${maxTime}d</span></div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--yellow)">
+        <div class="kpi-label">Búsqueda Externa / Interna</div>
+        <div class="kpi-value" style="font-size:22px">${externas} <span style="font-size:14px;color:var(--text-muted)">/ ${internas}</span></div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card wide">
+        <div class="chart-title">Cierres por Mes (Fecha de Ingreso)</div>
+        <div class="chart-wrap tall"><canvas id="ch3-mes"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por Motivo de Contratación</div>
+        <div class="chart-wrap"><canvas id="ch3-motivo"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por Fuente de Selección</div>
+        <div class="chart-wrap"><canvas id="ch3-fuente"></canvas></div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('v3-content').innerHTML = html;
+  Object.values(chartsV3).forEach(c => c.destroy());
+  chartsV3 = {};
+
+  chartsV3.mes = makeBarV('ch3-mes', Object.keys(porMes), Object.values(porMes), null, true);
+  const motivoCounts = countBy(d, 'motivoContratacion');
+  chartsV3.motivo = makeBarH('ch3-motivo', Object.keys(motivoCounts), Object.values(motivoCounts));
+  const fuenteCounts = countBy(d, 'fuente');
+  chartsV3.fuente = makeDoughnut('ch3-fuente', Object.keys(fuenteCounts), Object.values(fuenteCounts));
+}
+
+// ════════════════════════════════════════════
+// VIEW 4 — PERFORMANCE DEL EQUIPO
+// ════════════════════════════════════════════
+let chartV4 = null;
+
+function renderV4() {
+  const selectores = [...new Set(DATA.map(d => d.selector).filter(Boolean))].sort();
+  const maxActivas = Math.max(...selectores.map(s => DATA.filter(d => d.selector === s && (d.statusGeneral === 'En curso' || d.statusGeneral === 'En proceso de Ingreso')).length));
+  const maxCerradas = Math.max(...selectores.map(s => DATA.filter(d => d.selector === s && d.statusGeneral === 'Cerrada').length));
+
+  const cards = selectores.map(s => {
+    const total = DATA.filter(d => d.selector === s);
+    const activas = total.filter(d => d.statusGeneral === 'En curso' || d.statusGeneral === 'En proceso de Ingreso').length;
+    const cerradas = total.filter(d => d.statusGeneral === 'Cerrada').length;
+    const standby = total.filter(d => d.statusGeneral === 'StandBy').length;
+    const canceladas = total.filter(d => d.statusGeneral === 'Cancelada').length;
+
+    const tiempos = total.filter(d => d.statusGeneral === 'Cerrada' && d.fechaSolicitud && d.fechaIngreso)
+      .map(d => Math.round((d.fechaIngreso - d.fechaSolicitud) / 86400000));
+    const avgT = tiempos.length ? Math.round(tiempos.reduce((a,b)=>a+b,0)/tiempos.length) : null;
+
+    const criticas = total.filter(d => (d.statusGeneral === 'En curso' || d.statusGeneral === 'En proceso de Ingreso') && (d.diasApertura || 0) >= 91).length;
+
+    return `
+      <div class="perf-card">
+        <div class="perf-name">${s}</div>
+        <div class="perf-row">
+          <span class="perf-row-label">Activas</span>
+          <div class="perf-bar-wrap"><div class="perf-bar" style="width:${maxActivas ? (activas/maxActivas*100) : 0}%;background:var(--accent)"></div></div>
+          <span class="perf-val">${activas}</span>
+        </div>
+        <div class="perf-row">
+          <span class="perf-row-label">Cerradas</span>
+          <div class="perf-bar-wrap"><div class="perf-bar" style="width:${maxCerradas ? (cerradas/maxCerradas*100) : 0}%;background:var(--green)"></div></div>
+          <span class="perf-val">${cerradas}</span>
+        </div>
+        <div class="perf-row">
+          <span class="perf-row-label">StandBy</span>
+          <div class="perf-bar-wrap"><div class="perf-bar" style="width:${cerradas+activas ? (standby/(cerradas+activas+standby)*100) : 0}%;background:var(--yellow)"></div></div>
+          <span class="perf-val">${standby}</span>
+        </div>
+        <div class="perf-row">
+          <span class="perf-row-label">Canceladas</span>
+          <div class="perf-bar-wrap"><div class="perf-bar" style="width:${total.length ? (canceladas/total.length*100) : 0}%;background:var(--orange)"></div></div>
+          <span class="perf-val">${canceladas}</span>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;font-size:11px">
+          <div><span style="color:var(--text-muted)">Tiempo prom. cobertura</span><br><strong>${avgT ? avgT+'d' : '-'}</strong></div>
+          <div><span style="color:var(--text-muted)">Vacantes críticas</span><br><strong style="color:${criticas > 0 ? 'var(--red)' : 'var(--green)'}">${criticas}</strong></div>
+          <div><span style="color:var(--text-muted)">Total asignadas</span><br><strong>${total.length}</strong></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Comparativo chart data
+  const labels = selectores;
+  const activasData = selectores.map(s => DATA.filter(d => d.selector===s && (d.statusGeneral==='En curso'||d.statusGeneral==='En proceso de Ingreso')).length);
+  const cerradasData = selectores.map(s => DATA.filter(d => d.selector===s && d.statusGeneral==='Cerrada').length);
+
+  const html = `
+    <div class="perf-grid">${cards}</div>
+    <div class="chart-card">
+      <div class="chart-title">Comparativo por Selector</div>
+      <div class="chart-wrap tall"><canvas id="ch4-comp"></canvas></div>
+    </div>
+  `;
+
+  document.getElementById('v4-content').innerHTML = html;
+  if (chartV4) { chartV4.destroy(); chartV4 = null; }
+
+  chartV4 = new Chart(document.getElementById('ch4-comp'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Activas', data: activasData, backgroundColor: COLORS.accent, borderRadius: 4 },
+        { label: 'Cerradas', data: cerradasData, backgroundColor: COLORS.green, borderRadius: 4 }
+      ]
+    },
+    options: {
+      ...chartDefaults(),
+      scales: {
+        x: { ...axisStyle(), stacked: false },
+        y: { ...axisStyle(), beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════
+// CHART HELPERS
+// ════════════════════════════════════════════
+function chartDefaults() {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#6b7280', font: { family: 'DM Mono', size: 11 }, boxWidth: 12, padding: 12 } },
+      tooltip: { backgroundColor: '#181c24', titleColor: '#e8eaf0', bodyColor: '#9ca3af', borderColor: '#1e2330', borderWidth: 1, padding: 10 }
+    }
+  };
+}
+
+function axisStyle() {
+  return {
+    grid: { color: '#1e2330' },
+    ticks: { color: '#6b7280', font: { family: 'DM Mono', size: 10 } }
+  };
+}
+
+function makeBarH(id, labels, data) {
+  return new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: CHART_PALETTE, borderRadius: 3, borderSkipped: false }]
+    },
+    options: {
+      ...chartDefaults(),
+      indexAxis: 'y',
+      plugins: { ...chartDefaults().plugins, legend: { display: false } },
+      scales: {
+        x: { ...axisStyle(), beginAtZero: true },
+        y: { ...axisStyle() }
+      }
+    }
+  });
+}
+
+function makeBarV(id, labels, data, colors, gradient) {
+  const bg = colors || CHART_PALETTE.slice(0, labels.length);
+  return new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: bg, borderRadius: 4 }]
+    },
+    options: {
+      ...chartDefaults(),
+      plugins: { ...chartDefaults().plugins, legend: { display: false } },
+      scales: {
+        x: { ...axisStyle() },
+        y: { ...axisStyle(), beginAtZero: true }
+      }
+    }
+  });
+}
+
+function makeDoughnut(id, labels, data) {
+  return new Chart(document.getElementById(id), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: CHART_PALETTE, borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: {
+      ...chartDefaults(),
+      cutout: '65%',
+      plugins: {
+        ...chartDefaults().plugins,
+        legend: { ...chartDefaults().plugins.legend, position: 'right' }
+      }
+    }
+  });
+}
+
+function countBy(arr, key) {
+  const result = {};
+  arr.forEach(x => {
+    const v = x[key] || '(sin dato)';
+    result[v] = (result[v] || 0) + 1;
+  });
+  // Sort by count desc
+  return Object.fromEntries(Object.entries(result).sort((a,b) => b[1]-a[1]));
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+window.addEventListener('load', () => {
+  // Try to load from saved URL
+  const saved = localStorage.getItem('cober_onedrive_url');
+  if (saved) {
+    document.getElementById('onedrive-url').value = saved;
+    loadFromUrl(saved);
+  } else {
+    document.getElementById('v1-content').innerHTML =
+      `<div class="empty" style="height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+        <div style="font-size:32px">📂</div>
+        <div>Configurá la URL de OneDrive para cargar los datos.</div>
+        <button class="btn-primary" onclick="switchViewDirect('v5')">Ir a Configuración</button>
+      </div>`;
+  }
+});
+
+function switchViewDirect(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn')[4].classList.add('active');
+}
+</script>
+</body>
+</html>
