@@ -1681,8 +1681,14 @@ function renderV4() {
     const canceladas = total.filter(d => d.statusGeneral === 'Cancelada').length;
 
     const tiempos = total.filter(d => d.statusGeneral === 'Cerrada' && d.fechaSolicitud && d.fechaIngreso)
-      .map(d => Math.round((d.fechaIngreso - d.fechaSolicitud) / 86400000));
+      .map(d => Math.round((d.fechaIngreso - d.fechaSolicitud) / 86400000))
+      .sort((a,b) => a-b);
     const avgT = tiempos.length ? Math.round(tiempos.reduce((a,b)=>a+b,0)/tiempos.length) : null;
+    const medT = tiempos.length
+      ? (tiempos.length % 2 === 0
+          ? Math.round((tiempos[tiempos.length/2-1] + tiempos[tiempos.length/2]) / 2)
+          : tiempos[Math.floor(tiempos.length/2)])
+      : null;
 
     const criticas = total.filter(d => (d.statusGeneral === 'En curso' || d.statusGeneral === 'En proceso de Ingreso') && (d.diasApertura || 0) >= 91).length;
 
@@ -1709,8 +1715,9 @@ function renderV4() {
           <div class="perf-bar-wrap"><div class="perf-bar" style="width:${total.length ? (canceladas/total.length*100) : 0}%;background:var(--orange)"></div></div>
           <span class="perf-val">${canceladas}</span>
         </div>
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;font-size:11px">
-          <div><span style="color:var(--text-muted)">Tiempo prom. cobertura</span><br><strong>${avgT ? avgT+'d' : '-'}</strong></div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;font-size:11px;flex-wrap:wrap">
+          <div><span style="color:var(--text-muted)">TTF Promedio</span><br><strong>${avgT ? avgT+'d' : '-'}</strong></div>
+          <div><span style="color:var(--text-muted)">TTF Mediana</span><br><strong style="color:var(--accent2)">${medT ? medT+'d' : '-'}</strong></div>
           <div><span style="color:var(--text-muted)">Vacantes críticas</span><br><strong style="color:${criticas > 0 ? 'var(--red)' : 'var(--green)'}">${criticas}</strong></div>
           <div><span style="color:var(--text-muted)">Total asignadas</span><br><strong>${total.length}</strong></div>
         </div>
@@ -1758,8 +1765,14 @@ function renderV4() {
   const ttfBySel = {};
   selectores.forEach(s => {
     const ts = DATA.filter(d => d.selector===s && d.statusGeneral==='Cerrada' && d.fechaSolicitud && d.fechaIngreso)
-      .map(d => Math.round((d.fechaIngreso - d.fechaSolicitud) / 86400000));
-    ttfBySel[s] = ts.length ? Math.round(ts.reduce((a,b)=>a+b,0)/ts.length) : null;
+      .map(d => Math.round((d.fechaIngreso - d.fechaSolicitud) / 86400000))
+      .sort((a,b) => a-b);
+    // Use mediana — more robust than promedio for skewed distributions
+    ttfBySel[s] = ts.length
+      ? (ts.length % 2 === 0
+          ? Math.round((ts[ts.length/2-1] + ts[ts.length/2]) / 2)
+          : ts[Math.floor(ts.length/2)])
+      : null;
   });
   const ttfValidos = Object.entries(ttfBySel).filter(([,v]) => v !== null);
   const ttfEquipo = ttfValidos.length
@@ -1786,9 +1799,9 @@ function renderV4() {
 
   const v4Cards = [
     {
-      label: 'Mejor TTF del equipo',
+      label: 'Mejor TTF (mediana) del equipo',
       value: selMejorTTF ? `${selMejorTTF[0]} · ${selMejorTTF[1]}d` : '--',
-      desc: ttfEquipo ? `Promedio del equipo: ${ttfEquipo}d` : '',
+      desc: ttfEquipo ? `Mediana del equipo: ${ttfEquipo}d` : '',
       type: 'good'
     },
     {
