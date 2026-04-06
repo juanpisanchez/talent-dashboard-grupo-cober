@@ -559,6 +559,76 @@
     font-size: 13px;
   }
 
+  /* ─── INSIGHT CARDS ─── */
+  .insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .insight-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.2s;
+  }
+
+  .insight-card:hover { border-color: var(--accent); }
+
+  .insight-card.alert { border-left: 3px solid var(--red); }
+  .insight-card.warn  { border-left: 3px solid var(--yellow); }
+  .insight-card.good  { border-left: 3px solid var(--green); }
+  .insight-card.info  { border-left: 3px solid var(--accent); }
+  .insight-card.purple { border-left: 3px solid var(--accent2); }
+
+  .insight-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .insight-value {
+    font-family: var(--font-head);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .insight-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  .insight-section-title {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .insight-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
   /* ─── RESPONSIVE ─── */
   @media (max-width: 768px) {
     .main { padding: 16px; }
@@ -875,6 +945,7 @@ function processWorkbook(wb) {
     modalidad: (r['Modalidad de contratación'] || '').trim(),
     fechaCierre: parseDate(r['Fecha de cierre']),
     fechaIngreso: parseDate(r['Fecha de Ingreso']),
+    fechaEstimadaIngreso: parseDate(r['Fecha estimada de ingreso']),
     tipoBusqueda: (r['Tipo de Búsqueda'] || '').trim(),
     fuente: (r['Fuente de selección '] || r['Fuente de selección'] || '').trim(),
     seleccionado: (r['Nombre del seleccionado/a'] || '').trim(),
@@ -1033,17 +1104,22 @@ function renderV1() {
   const cerradas = d.filter(x => x.statusGeneral === 'Cerrada');
   const canceladas = d.filter(x => x.statusGeneral === 'Cancelada');
 
-  // Time to Fill: calculado sobre cerradas con ambas fechas
+  // TTF: mediana y promedio
   const tiempos = cerradas.filter(x => x.fechaSolicitud && x.fechaIngreso)
     .map(x => Math.round((x.fechaIngreso - x.fechaSolicitud) / 86400000))
     .sort((a,b) => a - b);
-  const ttfMin = tiempos.length ? tiempos[0] : '--';
-  const ttfMax = tiempos.length ? tiempos[tiempos.length - 1] : '--';
   const ttfMediana = tiempos.length
     ? (tiempos.length % 2 === 0
         ? Math.round((tiempos[tiempos.length/2 - 1] + tiempos[tiempos.length/2]) / 2)
         : tiempos[Math.floor(tiempos.length/2)])
     : '--';
+  const ttfPromedio = tiempos.length
+    ? Math.round(tiempos.reduce((a,b) => a+b,0) / tiempos.length)
+    : '--';
+
+  // Efectividad %
+  const totalValidas = d.filter(x => x.statusGeneral && x.statusGeneral !== 'StandBy').length;
+  const efectividad = totalValidas ? Math.round((cerradas.length / totalValidas) * 100) : 0;
 
   const html = `
     <div class="kpi-grid">
@@ -1068,36 +1144,37 @@ function renderV1() {
         <div class="kpi-sub">${activas.length} en curso · ${enIngreso.length} en ingreso</div>
       </div>
       <div class="kpi-card" style="--accent-color:var(--accent2)">
-        <div class="kpi-label">Time to Fill — Mínimo</div>
-        <div class="kpi-value" style="font-size:28px">${ttfMin}${ttfMin !== '--' ? '<span style="font-size:14px;font-weight:400">d</span>' : ''}</div>
-        <div class="kpi-sub">cobertura más rápida</div>
-      </div>
-      <div class="kpi-card" style="--accent-color:var(--accent)">
         <div class="kpi-label">Time to Fill — Mediana</div>
         <div class="kpi-value" style="font-size:28px">${ttfMediana}${ttfMediana !== '--' ? '<span style="font-size:14px;font-weight:400">d</span>' : ''}</div>
-        <div class="kpi-sub">valor central del período</div>
+        <div class="kpi-sub">valor central</div>
       </div>
-      <div class="kpi-card" style="--accent-color:var(--red)">
-        <div class="kpi-label">Time to Fill — Máximo</div>
-        <div class="kpi-value" style="font-size:28px">${ttfMax}${ttfMax !== '--' ? '<span style="font-size:14px;font-weight:400">d</span>' : ''}</div>
-        <div class="kpi-sub">cobertura más lenta</div>
+      <div class="kpi-card" style="--accent-color:var(--accent)">
+        <div class="kpi-label">Time to Fill — Promedio</div>
+        <div class="kpi-value" style="font-size:28px">${ttfPromedio}${ttfPromedio !== '--' ? '<span style="font-size:14px;font-weight:400">d</span>' : ''}</div>
+        <div class="kpi-sub">promedio histórico</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--green)">
+        <div class="kpi-label">% Efectividad</div>
+        <div class="kpi-value" style="font-size:28px">${efectividad}<span style="font-size:14px;font-weight:400">%</span></div>
+        <div class="kpi-sub">cerradas / total vacantes</div>
       </div>
     </div>
 
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-title">Vacantes Cerradas por Unidad de Negocio</div>
-        <div class="chart-wrap"><canvas id="ch-un-cerradas"></canvas></div>
+        <div class="chart-wrap"><canvas id="ch-un-dist"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Distribución de Vacantes Cerradas por Unidad de Negocio</div>
-        <div class="chart-wrap"><canvas id="ch-un-dist"></canvas></div>
+        <div class="chart-title">Vacantes Cerradas por Familia de Puesto</div>
+        <div class="chart-wrap"><canvas id="ch-familia-cerradas"></canvas></div>
       </div>
       <div class="chart-card wide">
         <div class="chart-title">Vacantes Cerradas — Tipo de Vacante</div>
         <div class="chart-wrap"><canvas id="ch-tipo"></canvas></div>
       </div>
     </div>
+    <div id="v1-insights"></div>
   `;
 
   document.getElementById('v1-content').innerHTML = html;
@@ -1105,19 +1182,66 @@ function renderV1() {
   Object.values(chartsV1).forEach(c => c.destroy());
   chartsV1 = {};
 
-  // Chart — Cerradas por UN (barras)
+  // Chart — Cerradas por UN
   const unCerradas = countBy(cerradas.filter(x => x.un), 'un');
-  chartsV1.unCerradas = makeBarH('ch-un-cerradas', Object.keys(unCerradas), Object.values(unCerradas));
+  chartsV1.unDist = makeBarH('ch-un-dist', Object.keys(unCerradas), Object.values(unCerradas));
 
-  // Chart — Distribución cerradas por UN (barras también, ordenadas)
-  chartsV1.unDist = makeBarV('ch-un-dist', Object.keys(unCerradas), Object.values(unCerradas));
+  // Chart — Cerradas por Familia de Puesto
+  const famCerradas = countBy(cerradas.filter(x => x.familia), 'familia');
+  chartsV1.famCerradas = makeBarH('ch-familia-cerradas', Object.keys(famCerradas), Object.values(famCerradas));
 
   // Chart — Tipo vacante cerradas
   const tipoCounts = countBy(cerradas.filter(x => x.tipoVacante), 'tipoVacante');
   chartsV1.tipo = makeBarV('ch-tipo', Object.keys(tipoCounts), Object.values(tipoCounts),
     [COLORS.accent, COLORS.accent2, COLORS.green, COLORS.yellow]);
-}
 
+  // ── V1 INSIGHTS ──
+  const unCerradasTop = Object.entries(countBy(cerradas.filter(x=>x.un),'un')).sort((a,b)=>b[1]-a[1]);
+  const famTop = Object.entries(countBy(d.filter(x=>x.familia),'familia')).sort((a,b)=>b[1]-a[1]);
+  const selActivo = Object.entries(countBy(
+    d.filter(x=>(x.statusGeneral==='En curso'||x.statusGeneral==='En proceso de Ingreso')&&x.selector),
+    'selector'
+  )).sort((a,b)=>b[1]-a[1]);
+
+  const ttfAlerta = (ttfPromedio !== '--' && ttfMediana !== '--' && ttfPromedio > ttfMediana * 1.3);
+
+  const v1Cards = [
+    {
+      label: 'Unidad con más cierres',
+      value: unCerradasTop[0] ? unCerradasTop[0][0] : '--',
+      desc: unCerradasTop[0] ? `${unCerradasTop[0][1]} vacantes cubiertas` : '',
+      type: 'good'
+    },
+    {
+      label: 'Familia más demandada',
+      value: famTop[0] ? famTop[0][0].replace('/','/ ') : '--',
+      desc: famTop[0] ? `${famTop[0][1]} vacantes en total` : '',
+      type: 'info'
+    },
+    {
+      label: 'Selector con mayor carga activa',
+      value: selActivo[0] ? selActivo[0][0] : '--',
+      desc: selActivo[0] ? `${selActivo[0][1]} búsquedas activas` : 'Sin activas',
+      type: 'purple'
+    },
+    ttfAlerta
+      ? {
+          label: '⚠️ Alerta TTF',
+          value: `Promedio ${ttfPromedio}d vs. mediana ${ttfMediana}d`,
+          desc: 'El promedio supera la mediana en más de 30%. Hay búsquedas largas distorsionando.',
+          type: 'alert'
+        }
+      : {
+          label: 'TTF estable',
+          value: `Promedio ${ttfPromedio}d · Mediana ${ttfMediana}d`,
+          desc: 'El tiempo de cobertura está distribuido de forma consistente.',
+          type: 'good'
+        }
+  ];
+
+  const insightsEl = document.getElementById('v1-insights');
+  if (insightsEl) insightsEl.innerHTML = buildInsights(v1Cards);
+}
 // ════════════════════════════════════════════
 // VIEW 2 — VACANTES ACTIVAS
 // ════════════════════════════════════════════
@@ -1178,9 +1302,13 @@ function renderV2() {
     </div>
 
     <div class="charts-grid" style="margin-bottom:16px">
-      <div class="chart-card wide">
-        <div class="chart-title">Distribución por Semáforo de Aging</div>
-        <div class="chart-wrap" style="height:180px"><canvas id="ch-v2-semaforo"></canvas></div>
+      <div class="chart-card">
+        <div class="chart-title">Vacantes Activas por Unidad de Negocio — Semáforo</div>
+        <div class="chart-wrap tall"><canvas id="ch-v2-un-semaforo"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Funnel del Proceso</div>
+        <div class="chart-wrap tall" id="ch-v2-funnel-wrap"></div>
       </div>
     </div>
 
@@ -1208,31 +1336,136 @@ function renderV2() {
         </table>
       </div>`}
     </div>
+    <div id="v2-insights"></div>
   `;
   document.getElementById('v2-content').innerHTML = html;
 
+  // Stacked bar: activas por UN con semaforo
   if (chartV2Semaforo) { chartV2Semaforo.destroy(); chartV2Semaforo = null; }
+  const allActivas = DATA.filter(x => x.statusGeneral === 'En curso' || x.statusGeneral === 'En proceso de Ingreso');
+  const filteredActivas = d; // ya filtradas
 
-  chartV2Semaforo = new Chart(document.getElementById('ch-v2-semaforo'), {
+  // Build per-UN semaforo counts
+  const uns = [...new Set(filteredActivas.map(x => x.un).filter(Boolean))].sort();
+  const unVerde = uns.map(u => filteredActivas.filter(x => x.un===u && getAgingClass(x.diasApertura)==='green').length);
+  const unAmarillo = uns.map(u => filteredActivas.filter(x => x.un===u && getAgingClass(x.diasApertura)==='yellow').length);
+  const unNaranja = uns.map(u => filteredActivas.filter(x => x.un===u && getAgingClass(x.diasApertura)==='orange').length);
+  const unCritico = uns.map(u => filteredActivas.filter(x => x.un===u && getAgingClass(x.diasApertura)==='critical').length);
+
+  chartV2Semaforo = new Chart(document.getElementById('ch-v2-un-semaforo'), {
     type: 'bar',
     data: {
-      labels: ['🟢 En tiempo (≤30d)', '🟡 Atención (31-60d)', '🔴 Urgente (61-90d)', '🚨 Crítico (91d+)'],
-      datasets: [{
-        data: [verde, amarillo, naranja, critico],
-        backgroundColor: [COLORS.green, COLORS.yellow, COLORS.orange, COLORS.red],
-        borderRadius: 6,
-      }]
+      labels: uns,
+      datasets: [
+        { label: '🟢 En tiempo', data: unVerde, backgroundColor: COLORS.green, borderRadius: 2 },
+        { label: '🟡 Atención', data: unAmarillo, backgroundColor: COLORS.yellow, borderRadius: 2 },
+        { label: '🔴 Urgente', data: unNaranja, backgroundColor: COLORS.orange, borderRadius: 2 },
+        { label: '🚨 Crítico', data: unCritico, backgroundColor: COLORS.red, borderRadius: 2 },
+      ]
     },
     options: {
       ...chartDefaults(),
       indexAxis: 'y',
-      plugins: { ...chartDefaults().plugins, legend: { display: false } },
       scales: {
-        x: { ...axisStyle(), beginAtZero: true, ticks: { ...axisStyle().ticks, stepSize: 1 } },
-        y: { ...axisStyle() }
+        x: { ...axisStyle(), beginAtZero: true, stacked: true },
+        y: { ...axisStyle(), stacked: true }
+      },
+      plugins: {
+        ...chartDefaults().plugins,
+        legend: { ...chartDefaults().plugins.legend, position: 'bottom' }
       }
     }
   });
+
+  // Funnel del proceso
+  const funnelOrder = [
+    'Preselección/Screening', 'Entrevista Atracción de Talento', 'Entrevista RRHH',
+    'Entrevista Hiring Manager', 'Carta Oferta', 'Preocupacional', 'En proceso de Ingreso'
+  ];
+  const funnelCounts = {};
+  filteredActivas.forEach(x => {
+    const etapa = x.statusProceso ? x.statusProceso.trim() : null;
+    if (etapa && etapa !== 'StandBy' && etapa !== 'Cancelada') {
+      funnelCounts[etapa] = (funnelCounts[etapa] || 0) + 1;
+    }
+    // Also count by statusGeneral for "En proceso de ingreso"
+    if (x.statusGeneral === 'En proceso de Ingreso' && (!etapa || etapa === 'Ingreso')) {
+      funnelCounts['En proceso de Ingreso'] = (funnelCounts['En proceso de Ingreso'] || 0) + 1;
+    }
+  });
+
+  const funnelData = funnelOrder
+    .map(label => ({ label, count: funnelCounts[label] || 0 }))
+    .filter(x => x.count > 0);
+
+  // Add any etapas not in order
+  Object.keys(funnelCounts).forEach(k => {
+    if (!funnelOrder.includes(k) && funnelCounts[k] > 0) {
+      funnelData.unshift({ label: k, count: funnelCounts[k] });
+    }
+  });
+  funnelData.sort((a,b) => b.count - a.count);
+
+  const maxF = Math.max(...funnelData.map(x => x.count), 1);
+  const funnelHTML = funnelData.map((item, i) => {
+    const pct = Math.round((item.count / maxF) * 100);
+    const alpha = 1 - (i * 0.12);
+    return `
+      <div class="funnel-row">
+        <div class="funnel-label" title="${item.label}">${item.label}</div>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar" style="width:${pct}%;opacity:${Math.max(alpha,0.4)}">
+            ${item.count >= 3 ? item.count : ''}
+          </div>
+        </div>
+        <div class="funnel-count">${item.count}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('ch-v2-funnel-wrap').innerHTML = `<div class="funnel-wrap">${funnelHTML}</div>`;
+
+  // ── V2 INSIGHTS ──
+  const totalAct = d.length;
+  const pctCritico = totalAct ? Math.round((critico / totalAct) * 100) : 0;
+  const pctRojoMas = totalAct ? Math.round(((naranja + critico) / totalAct) * 100) : 0;
+
+  const unCriticoMap = {};
+  d.filter(x => getAgingClass(x.diasApertura) === 'critical').forEach(x => {
+    if (x.un) unCriticoMap[x.un] = (unCriticoMap[x.un] || 0) + 1;
+  });
+  const unCriticoTop = Object.entries(unCriticoMap).sort((a,b)=>b[1]-a[1])[0];
+  const masAntigua = [...d].sort((a,b) => (b.diasApertura||0) - (a.diasApertura||0))[0];
+
+  const v2Cards = [
+    {
+      label: 'Vacantes en estado crítico',
+      value: `${critico} vacantes (${pctCritico}%)`,
+      desc: critico > 0 ? 'Llevan más de 91 días sin candidato ingresado.' : 'Ninguna en estado crítico. ✅',
+      type: critico > 0 ? 'alert' : 'good'
+    },
+    {
+      label: 'Unidad con más críticas',
+      value: unCriticoTop ? unCriticoTop[0] : 'Sin críticas',
+      desc: unCriticoTop ? `${unCriticoTop[1]} vacante${unCriticoTop[1]>1?'s':''} en estado crítico` : 'Todas en verde.',
+      type: unCriticoTop ? 'alert' : 'good'
+    },
+    {
+      label: 'Búsqueda más antigua',
+      value: masAntigua ? `${masAntigua.diasApertura}d · ${(masAntigua.puesto||'').substring(0,25)}` : '--',
+      desc: masAntigua ? `${masAntigua.selector} · ${masAntigua.un}` : '',
+      type: masAntigua && (masAntigua.diasApertura||0) >= 91 ? 'alert' : 'warn'
+    },
+    {
+      label: pctRojoMas >= 30 ? '⚠️ Alta concentración en zona roja' : 'Distribución de aging',
+      value: `${pctRojoMas}% en zona roja/crítica`,
+      desc: pctRojoMas >= 30
+        ? 'Más del 30% de las búsquedas requieren atención urgente.'
+        : 'La mayoría de búsquedas están dentro de los tiempos esperados.',
+      type: pctRojoMas >= 30 ? 'alert' : 'good'
+    }
+  ];
+
+  const insightsEl2 = document.getElementById('v2-insights');
+  if (insightsEl2) insightsEl2.innerHTML = buildInsights(v2Cards);
 }
 
 function getAgingClass(dias) {
@@ -1259,22 +1492,59 @@ function renderV3() {
   const d = getV3Filtered();
 
   const tiempos = d.filter(x => x.fechaSolicitud && x.fechaIngreso)
-    .map(x => Math.round((x.fechaIngreso - x.fechaSolicitud) / 86400000));
+    .map(x => Math.round((x.fechaIngreso - x.fechaSolicitud) / 86400000))
+    .sort((a,b) => a - b);
   const avgTime = tiempos.length ? Math.round(tiempos.reduce((a,b)=>a+b,0)/tiempos.length) : '--';
-  const minTime = tiempos.length ? Math.min(...tiempos) : '--';
-  const maxTime = tiempos.length ? Math.max(...tiempos) : '--';
+  const ttfMediana = tiempos.length
+    ? (tiempos.length % 2 === 0
+        ? Math.round((tiempos[tiempos.length/2-1] + tiempos[tiempos.length/2]) / 2)
+        : tiempos[Math.floor(tiempos.length/2)])
+    : '--';
 
   const externas = d.filter(x => x.tipoBusqueda === 'Externa').length;
   const internas = d.filter(x => x.tipoBusqueda === 'Interna').length;
+  const pctInterna = d.length ? Math.round((internas / d.length) * 100) : 0;
 
-  // Cierres por mes
-  const porMes = {};
-  d.forEach(x => {
-    if (x.fechaIngreso) {
-      const k = x.fechaIngreso.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
-      porMes[k] = (porMes[k] || 0) + 1;
-    }
+  // Top fuente
+  const fuenteCounts = countBy(d.filter(x => x.fuente), 'fuente');
+  const topFuente = Object.keys(fuenteCounts).sort((a,b) => fuenteCounts[b]-fuenteCounts[a])[0] || '--';
+
+  // Motivo más frecuente
+  const motivoCounts = countBy(d.filter(x => x.motivoContratacion), 'motivoContratacion');
+  const topMotivo = Object.keys(motivoCounts).sort((a,b) => motivoCounts[b]-motivoCounts[a])[0] || '--';
+
+  // ── TIMELINE: build Jan–Dec with real + projected
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  // Real cierres by month (from all DATA, not just filtered — use filtered)
+  const realByMonth = Array(12).fill(0);
+  const allCerradas = DATA.filter(x => x.statusGeneral === 'Cerrada' && x.fechaIngreso);
+  allCerradas.forEach(x => {
+    const d2 = new Date(x.fechaIngreso);
+    if (d2.getFullYear() === currentYear) realByMonth[d2.getMonth()]++;
   });
+
+  // Projected: vacantes activas con fecha estimada de ingreso
+  const projByMonth = Array(12).fill(0);
+  const activas = DATA.filter(x =>
+    (x.statusGeneral === 'En curso' || x.statusGeneral === 'En proceso de Ingreso') && x.fechaEstimadaIngreso
+  );
+  activas.forEach(x => {
+    const d3 = new Date(x.fechaEstimadaIngreso);
+    if (d3.getFullYear() === currentYear) projByMonth[d3.getMonth()]++;
+  });
+
+  // Trend projection for months with no estimada: use avg of last 3 months
+  const currentMonth = today.getMonth();
+  const last3 = realByMonth.slice(Math.max(0, currentMonth-2), currentMonth+1).filter(v => v > 0);
+  const trendAvg = last3.length ? Math.round(last3.reduce((a,b)=>a+b,0)/last3.length) : 0;
+
+  // For future months with no proyección, use trend
+  for (let i = currentMonth + 1; i < 12; i++) {
+    if (projByMonth[i] === 0) projByMonth[i] = trendAvg;
+  }
 
   const html = `
     <div class="kpi-grid">
@@ -1283,24 +1553,26 @@ function renderV3() {
         <div class="kpi-value">${d.length}</div>
       </div>
       <div class="kpi-card" style="--accent-color:var(--accent)">
-        <div class="kpi-label">Tiempo promedio cobertura</div>
-        <div class="kpi-value" style="font-size:28px">${avgTime}<span style="font-size:14px;font-weight:400"> días</span></div>
+        <div class="kpi-label">TTF Promedio</div>
+        <div class="kpi-value" style="font-size:28px">${avgTime}${avgTime!=='--'?'<span style="font-size:14px;font-weight:400">d</span>':''}</div>
       </div>
       <div class="kpi-card" style="--accent-color:var(--accent2)">
-        <div class="kpi-label">Mínimo / Máximo</div>
-        <div class="kpi-value" style="font-size:22px">${minTime} <span style="font-size:14px;color:var(--text-muted)">/ ${maxTime}d</span></div>
+        <div class="kpi-label">TTF Mediana</div>
+        <div class="kpi-value" style="font-size:28px">${ttfMediana}${ttfMediana!=='--'?'<span style="font-size:14px;font-weight:400">d</span>':''}</div>
       </div>
       <div class="kpi-card" style="--accent-color:var(--yellow)">
-        <div class="kpi-label">Búsqueda Externa / Interna</div>
-        <div class="kpi-value" style="font-size:22px">${externas} <span style="font-size:14px;color:var(--text-muted)">/ ${internas}</span></div>
+        <div class="kpi-label">Búsqueda Interna</div>
+        <div class="kpi-value" style="font-size:28px">${pctInterna}<span style="font-size:14px;font-weight:400">%</span></div>
+        <div class="kpi-sub">${internas} internas · ${externas} externas</div>
       </div>
     </div>
 
+    <div class="chart-card" style="margin-bottom:18px">
+      <div class="chart-title">Evolución de Cierres ${currentYear} — Real vs. Proyección</div>
+      <div class="chart-wrap tall"><canvas id="ch3-timeline"></canvas></div>
+    </div>
+
     <div class="charts-grid">
-      <div class="chart-card wide">
-        <div class="chart-title">Cierres por Mes (Fecha de Ingreso)</div>
-        <div class="chart-wrap tall"><canvas id="ch3-mes"></canvas></div>
-      </div>
       <div class="chart-card">
         <div class="chart-title">Por Motivo de Contratación</div>
         <div class="chart-wrap"><canvas id="ch3-motivo"></canvas></div>
@@ -1310,19 +1582,87 @@ function renderV3() {
         <div class="chart-wrap"><canvas id="ch3-fuente"></canvas></div>
       </div>
     </div>
+
+    <div class="chart-card" style="margin-top:18px">
+      <div class="chart-title">💡 Insights Clave</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;padding:12px 0;font-size:12px">
+        <div style="background:var(--surface2);border-radius:8px;padding:14px;border-left:3px solid var(--green)">
+          <div style="color:var(--text-muted);margin-bottom:4px">Mejor mes del año</div>
+          <div style="font-family:var(--font-head);font-size:16px;font-weight:700">${MONTHS[realByMonth.indexOf(Math.max(...realByMonth))]}</div>
+          <div style="color:var(--text-muted)">${Math.max(...realByMonth)} ingresos</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px;border-left:3px solid var(--accent)">
+          <div style="color:var(--text-muted);margin-bottom:4px">Fuente principal</div>
+          <div style="font-family:var(--font-head);font-size:16px;font-weight:700">${topFuente}</div>
+          <div style="color:var(--text-muted)">${fuenteCounts[topFuente] || 0} contrataciones</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px;border-left:3px solid var(--yellow)">
+          <div style="color:var(--text-muted);margin-bottom:4px">Motivo más frecuente</div>
+          <div style="font-family:var(--font-head);font-size:15px;font-weight:700">${topMotivo}</div>
+          <div style="color:var(--text-muted)">${motivoCounts[topMotivo] || 0} vacantes</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px;border-left:3px solid var(--accent2)">
+          <div style="color:var(--text-muted);margin-bottom:4px">Proyección próx. mes</div>
+          <div style="font-family:var(--font-head);font-size:16px;font-weight:700">${projByMonth[Math.min(currentMonth+1, 11)]}</div>
+          <div style="color:var(--text-muted)">ingresos estimados</div>
+        </div>
+      </div>
+    </div>
   `;
 
   document.getElementById('v3-content').innerHTML = html;
   Object.values(chartsV3).forEach(c => c.destroy());
   chartsV3 = {};
 
-  chartsV3.mes = makeBarV('ch3-mes', Object.keys(porMes), Object.values(porMes), null, true);
-  const motivoCounts = countBy(d, 'motivoContratacion');
-  chartsV3.motivo = makeBarH('ch3-motivo', Object.keys(motivoCounts), Object.values(motivoCounts));
-  const fuenteCounts = countBy(d, 'fuente');
-  chartsV3.fuente = makeDoughnut('ch3-fuente', Object.keys(fuenteCounts), Object.values(fuenteCounts));
-}
+  // Timeline chart — line with real + projected
+  chartsV3.timeline = new Chart(document.getElementById('ch3-timeline'), {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: [
+        {
+          label: 'Ingresos reales',
+          data: realByMonth,
+          borderColor: COLORS.green,
+          backgroundColor: 'rgba(34,197,94,0.12)',
+          borderWidth: 2.5,
+          pointBackgroundColor: COLORS.green,
+          pointRadius: 5,
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: 'Proyección',
+          data: projByMonth.map((v, i) => i > currentMonth ? v : null),
+          borderColor: COLORS.accent,
+          backgroundColor: 'rgba(79,142,247,0.08)',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          pointBackgroundColor: COLORS.accent,
+          pointRadius: 4,
+          tension: 0.3,
+          fill: true,
+        }
+      ]
+    },
+    options: {
+      ...chartDefaults(),
+      scales: {
+        x: { ...axisStyle() },
+        y: { ...axisStyle(), beginAtZero: true }
+      },
+      plugins: {
+        ...chartDefaults().plugins,
+        legend: { ...chartDefaults().plugins.legend, position: 'top' }
+      }
+    }
+  });
 
+  const motivoCounts2 = countBy(d, 'motivoContratacion');
+  chartsV3.motivo = makeBarH('ch3-motivo', Object.keys(motivoCounts2), Object.values(motivoCounts2));
+  const fuenteCounts2 = countBy(d, 'fuente');
+  chartsV3.fuente = makeDoughnut('ch3-fuente', Object.keys(fuenteCounts2), Object.values(fuenteCounts2));
+}
 // ════════════════════════════════════════════
 // VIEW 4 — PERFORMANCE DEL EQUIPO
 // ════════════════════════════════════════════
@@ -1389,6 +1729,7 @@ function renderV4() {
       <div class="chart-title">Comparativo por Selector</div>
       <div class="chart-wrap tall"><canvas id="ch4-comp"></canvas></div>
     </div>
+    <div id="v4-insights"></div>
   `;
 
   document.getElementById('v4-content').innerHTML = html;
@@ -1411,11 +1752,91 @@ function renderV4() {
       }
     }
   });
+
+  // ── V4 INSIGHTS ──
+  // TTF por selector
+  const ttfBySel = {};
+  selectores.forEach(s => {
+    const ts = DATA.filter(d => d.selector===s && d.statusGeneral==='Cerrada' && d.fechaSolicitud && d.fechaIngreso)
+      .map(d => Math.round((d.fechaIngreso - d.fechaSolicitud) / 86400000));
+    ttfBySel[s] = ts.length ? Math.round(ts.reduce((a,b)=>a+b,0)/ts.length) : null;
+  });
+  const ttfValidos = Object.entries(ttfBySel).filter(([,v]) => v !== null);
+  const ttfEquipo = ttfValidos.length
+    ? Math.round(ttfValidos.reduce((s,[,v])=>s+v,0)/ttfValidos.length) : null;
+
+  const selMejorTTF = ttfValidos.sort((a,b)=>a[1]-b[1])[0];
+  const selPeorTTF  = ttfValidos.sort((a,b)=>b[1]-a[1])[0];
+
+  // Selector con más críticas
+  const criticasPorSel = {};
+  selectores.forEach(s => {
+    criticasPorSel[s] = DATA.filter(d =>
+      d.selector===s &&
+      (d.statusGeneral==='En curso'||d.statusGeneral==='En proceso de Ingreso') &&
+      (d.diasApertura||0) >= 91
+    ).length;
+  });
+  const selMasCriticas = Object.entries(criticasPorSel).sort((a,b)=>b[1]-a[1])[0];
+
+  // Selector con más cierres
+  const selMasCierres = selectores
+    .map(s => [s, DATA.filter(d=>d.selector===s&&d.statusGeneral==='Cerrada').length])
+    .sort((a,b)=>b[1]-a[1])[0];
+
+  const v4Cards = [
+    {
+      label: 'Mejor TTF del equipo',
+      value: selMejorTTF ? `${selMejorTTF[0]} · ${selMejorTTF[1]}d` : '--',
+      desc: ttfEquipo ? `Promedio del equipo: ${ttfEquipo}d` : '',
+      type: 'good'
+    },
+    {
+      label: 'Mayor volumen de cierres',
+      value: selMasCierres ? `${selMasCierres[0]} · ${selMasCierres[1]} vacantes` : '--',
+      desc: 'Selector con más contrataciones concretadas',
+      type: 'info'
+    },
+    {
+      label: 'Selector con más búsquedas críticas',
+      value: selMasCriticas && selMasCriticas[1] > 0 ? `${selMasCriticas[0]} · ${selMasCriticas[1]} críticas` : 'Sin críticas',
+      desc: selMasCriticas && selMasCriticas[1] > 0
+        ? 'Requiere atención o redistribución de carga.'
+        : 'Ningún selector tiene búsquedas en estado crítico. ✅',
+      type: selMasCriticas && selMasCriticas[1] > 0 ? 'alert' : 'good'
+    },
+    {
+      label: selPeorTTF && selMejorTTF && selPeorTTF[1] > selMejorTTF[1] * 1.5 ? '⚠️ Brecha de TTF' : 'TTF homogéneo',
+      value: selPeorTTF && selMejorTTF
+        ? `${selMejorTTF[1]}d — ${selPeorTTF[1]}d`
+        : '--',
+      desc: selPeorTTF && selMejorTTF && selPeorTTF[1] > selMejorTTF[1] * 1.5
+        ? `Hay una brecha amplia entre ${selMejorTTF[0]} y ${selPeorTTF[0]}. Revisá metodología de búsqueda.`
+        : 'Los tiempos de cobertura del equipo son consistentes.',
+      type: selPeorTTF && selMejorTTF && selPeorTTF[1] > selMejorTTF[1] * 1.5 ? 'warn' : 'good'
+    }
+  ];
+
+  const insightsEl4 = document.getElementById('v4-insights');
+  if (insightsEl4) insightsEl4.innerHTML = buildInsights(v4Cards);
 }
 
 // ════════════════════════════════════════════
 // CHART HELPERS
 // ════════════════════════════════════════════
+function buildInsights(cards) {
+  return `
+    <div class="insight-section-title">💡 Insights clave</div>
+    <div class="insights-grid">
+      ${cards.map(c => `
+        <div class="insight-card ${c.type || 'info'}">
+          <div class="insight-label">${c.label}</div>
+          <div class="insight-value">${c.value}</div>
+          ${c.desc ? `<div class="insight-desc">${c.desc}</div>` : ''}
+        </div>`).join('')}
+    </div>`;
+}
+
 function chartDefaults() {
   return {
     responsive: true,
