@@ -972,8 +972,12 @@ function resetFilters(view) {
 // ════════════════════════════════════════════
 // FILTER HELPERS
 // ════════════════════════════════════════════
+function isValidRow(x) {
+  return !!(x.selector || x.puesto || x.un || x.statusGeneral);
+}
+
 function getV1Filtered() {
-  let d = [...DATA];
+  let d = DATA.filter(isValidRow);
   const sel = document.getElementById('f1-selector')?.value;
   const un = document.getElementById('f1-un')?.value;
   const fam = document.getElementById('f1-familia')?.value;
@@ -1024,34 +1028,25 @@ function renderV1() {
   const d = getV1Filtered();
   const activas = d.filter(x => x.statusGeneral === 'En curso');
   const enIngreso = d.filter(x => x.statusGeneral === 'En proceso de Ingreso');
+  const totalActivas = activas.length + enIngreso.length;
   const standby = d.filter(x => x.statusGeneral === 'StandBy');
   const cerradas = d.filter(x => x.statusGeneral === 'Cerrada');
   const canceladas = d.filter(x => x.statusGeneral === 'Cancelada');
 
-  // Avg time to fill (dias apertura for cerradas with numeric dias... use fechas)
+  // Time to Fill: calculado sobre cerradas con ambas fechas
   const tiempos = cerradas.filter(x => x.fechaSolicitud && x.fechaIngreso)
-    .map(x => Math.round((x.fechaIngreso - x.fechaSolicitud) / 86400000));
-  const avgTime = tiempos.length ? Math.round(tiempos.reduce((a,b) => a+b, 0) / tiempos.length) : '--';
-
-  const efectividad = d.length ? Math.round((cerradas.length / d.filter(x => x.statusGeneral !== 'StandBy').length) * 100) : 0;
+    .map(x => Math.round((x.fechaIngreso - x.fechaSolicitud) / 86400000))
+    .sort((a,b) => a - b);
+  const ttfMin = tiempos.length ? tiempos[0] : '--';
+  const ttfMax = tiempos.length ? tiempos[tiempos.length - 1] : '--';
+  const ttfMediana = tiempos.length
+    ? (tiempos.length % 2 === 0
+        ? Math.round((tiempos[tiempos.length/2 - 1] + tiempos[tiempos.length/2]) / 2)
+        : tiempos[Math.floor(tiempos.length/2)])
+    : '--';
 
   const html = `
     <div class="kpi-grid">
-      <div class="kpi-card" style="--accent-color:var(--accent)">
-        <div class="kpi-label">Activas (En curso)</div>
-        <div class="kpi-value">${activas.length}</div>
-        <div class="kpi-sub">búsquedas en proceso</div>
-      </div>
-      <div class="kpi-card" style="--accent-color:var(--accent2)">
-        <div class="kpi-label">En proceso de ingreso</div>
-        <div class="kpi-value">${enIngreso.length}</div>
-        <div class="kpi-sub">con candidato seleccionado</div>
-      </div>
-      <div class="kpi-card" style="--accent-color:var(--yellow)">
-        <div class="kpi-label">StandBy</div>
-        <div class="kpi-value">${standby.length}</div>
-        <div class="kpi-sub">pausadas</div>
-      </div>
       <div class="kpi-card" style="--accent-color:var(--green)">
         <div class="kpi-label">Cerradas</div>
         <div class="kpi-value">${cerradas.length}</div>
@@ -1062,28 +1057,44 @@ function renderV1() {
         <div class="kpi-value">${canceladas.length}</div>
         <div class="kpi-sub">sin cobertura</div>
       </div>
-      <div class="kpi-card" style="--accent-color:var(--green)">
-        <div class="kpi-label">Tiempo promedio cobertura</div>
-        <div class="kpi-value" style="font-size:28px">${avgTime}<span style="font-size:16px;font-weight:400"> días</span></div>
-        <div class="kpi-sub">vacantes cerradas con fecha</div>
+      <div class="kpi-card" style="--accent-color:var(--yellow)">
+        <div class="kpi-label">StandBy</div>
+        <div class="kpi-value">${standby.length}</div>
+        <div class="kpi-sub">pausadas</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--accent)">
+        <div class="kpi-label">Activas Total</div>
+        <div class="kpi-value">${totalActivas}</div>
+        <div class="kpi-sub">${activas.length} en curso · ${enIngreso.length} en ingreso</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--accent2)">
+        <div class="kpi-label">Time to Fill — Mínimo</div>
+        <div class="kpi-value" style="font-size:28px">${ttfMin}${ttfMin !== '--' ? '<span style="font-size:14px;font-weight:400">d</span>' : ''}</div>
+        <div class="kpi-sub">cobertura más rápida</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--accent)">
+        <div class="kpi-label">Time to Fill — Mediana</div>
+        <div class="kpi-value" style="font-size:28px">${ttfMediana}${ttfMediana !== '--' ? '<span style="font-size:14px;font-weight:400">d</span>' : ''}</div>
+        <div class="kpi-sub">valor central del período</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--red)">
+        <div class="kpi-label">Time to Fill — Máximo</div>
+        <div class="kpi-value" style="font-size:28px">${ttfMax}${ttfMax !== '--' ? '<span style="font-size:14px;font-weight:400">d</span>' : ''}</div>
+        <div class="kpi-sub">cobertura más lenta</div>
       </div>
     </div>
 
     <div class="charts-grid">
       <div class="chart-card">
-        <div class="chart-title">Vacantes por Unidad de Negocio</div>
-        <div class="chart-wrap"><canvas id="ch-un"></canvas></div>
+        <div class="chart-title">Vacantes Cerradas por Unidad de Negocio</div>
+        <div class="chart-wrap"><canvas id="ch-un-cerradas"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Distribución por Familia de Puesto</div>
-        <div class="chart-wrap"><canvas id="ch-familia"></canvas></div>
+        <div class="chart-title">Distribución de Vacantes Cerradas por Unidad de Negocio</div>
+        <div class="chart-wrap"><canvas id="ch-un-dist"></canvas></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Pipeline — Status General</div>
-        <div class="chart-wrap"><canvas id="ch-status"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Tipo de Vacante</div>
+      <div class="chart-card wide">
+        <div class="chart-title">Vacantes Cerradas — Tipo de Vacante</div>
         <div class="chart-wrap"><canvas id="ch-tipo"></canvas></div>
       </div>
     </div>
@@ -1091,45 +1102,38 @@ function renderV1() {
 
   document.getElementById('v1-content').innerHTML = html;
 
-  // Destroy old charts
   Object.values(chartsV1).forEach(c => c.destroy());
   chartsV1 = {};
 
-  // Chart — UN
-  const unCounts = countBy(d, 'un');
-  chartsV1.un = makeBarH('ch-un', Object.keys(unCounts), Object.values(unCounts));
+  // Chart — Cerradas por UN (barras)
+  const unCerradas = countBy(cerradas.filter(x => x.un), 'un');
+  chartsV1.unCerradas = makeBarH('ch-un-cerradas', Object.keys(unCerradas), Object.values(unCerradas));
 
-  // Chart — Familia
-  const famCounts = countBy(d, 'familia');
-  chartsV1.familia = makeDoughnut('ch-familia', Object.keys(famCounts), Object.values(famCounts));
+  // Chart — Distribución cerradas por UN (barras también, ordenadas)
+  chartsV1.unDist = makeBarV('ch-un-dist', Object.keys(unCerradas), Object.values(unCerradas));
 
-  // Chart — Status
-  const statusData = {
-    'En curso': activas.length,
-    'En proceso de Ingreso': enIngreso.length,
-    'StandBy': standby.length,
-    'Cerrada': cerradas.length,
-    'Cancelada': canceladas.length
-  };
-  chartsV1.status = makeBarV('ch-status', Object.keys(statusData), Object.values(statusData),
-    [COLORS.accent, COLORS.accent2, COLORS.yellow, COLORS.green, COLORS.orange]);
-
-  // Chart — Tipo vacante
-  const tipoCounts = countBy(d, 'tipoVacante');
-  chartsV1.tipo = makeDoughnut('ch-tipo', Object.keys(tipoCounts), Object.values(tipoCounts));
+  // Chart — Tipo vacante cerradas
+  const tipoCounts = countBy(cerradas.filter(x => x.tipoVacante), 'tipoVacante');
+  chartsV1.tipo = makeBarV('ch-tipo', Object.keys(tipoCounts), Object.values(tipoCounts),
+    [COLORS.accent, COLORS.accent2, COLORS.green, COLORS.yellow]);
 }
 
 // ════════════════════════════════════════════
 // VIEW 2 — VACANTES ACTIVAS
 // ════════════════════════════════════════════
+let chartV2Semaforo = null;
+
 function renderV2() {
   const d = getV2Filtered();
 
-  const crit = d.filter(x => (x.diasApertura || 0) >= 91).length;
-  const urg = d.filter(x => (x.diasApertura || 0) >= 61 && (x.diasApertura || 0) <= 90).length;
+  const enCurso = d.filter(x => x.statusGeneral === 'En curso').length;
+  const enIngreso = d.filter(x => x.statusGeneral === 'En proceso de Ingreso').length;
+  const verde = d.filter(x => getAgingClass(x.diasApertura) === 'green').length;
+  const amarillo = d.filter(x => getAgingClass(x.diasApertura) === 'yellow').length;
+  const naranja = d.filter(x => getAgingClass(x.diasApertura) === 'orange').length;
+  const critico = d.filter(x => getAgingClass(x.diasApertura) === 'critical').length;
 
   const rows = d.map(x => {
-    const ag = getAgingClass(x.diasApertura);
     const badge = agingBadge(x.diasApertura);
     const stBadge = x.statusGeneral === 'En proceso de Ingreso'
       ? `<span class="badge badge-purple">En proceso ingreso</span>`
@@ -1150,23 +1154,40 @@ function renderV2() {
 
   const html = `
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-      <div class="kpi-card" style="--accent-color:var(--accent);flex:1;min-width:140px">
+      <div class="kpi-card" style="--accent-color:var(--accent);flex:1;min-width:160px">
         <div class="kpi-label">Total Activas</div>
         <div class="kpi-value">${d.length}</div>
+        <div class="kpi-sub">${enCurso} en curso · ${enIngreso} en ingreso</div>
       </div>
-      <div class="kpi-card" style="--accent-color:var(--red);flex:1;min-width:140px">
-        <div class="kpi-label">🚨 Críticas (91d+)</div>
-        <div class="kpi-value" style="color:var(--red)">${crit}</div>
+      <div class="kpi-card" style="--accent-color:var(--green);flex:1;min-width:130px">
+        <div class="kpi-label">🟢 En tiempo (≤30d)</div>
+        <div class="kpi-value" style="color:var(--green)">${verde}</div>
       </div>
-      <div class="kpi-card" style="--accent-color:var(--orange);flex:1;min-width:140px">
-        <div class="kpi-label">🔴 Urgentes (61-90d)</div>
-        <div class="kpi-value" style="color:var(--orange)">${urg}</div>
+      <div class="kpi-card" style="--accent-color:var(--yellow);flex:1;min-width:130px">
+        <div class="kpi-label">🟡 Atención (31-60d)</div>
+        <div class="kpi-value" style="color:var(--yellow)">${amarillo}</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--orange);flex:1;min-width:130px">
+        <div class="kpi-label">🔴 Urgente (61-90d)</div>
+        <div class="kpi-value" style="color:var(--orange)">${naranja}</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:var(--red);flex:1;min-width:130px">
+        <div class="kpi-label">🚨 Crítico (91d+)</div>
+        <div class="kpi-value" style="color:var(--red)">${critico}</div>
       </div>
     </div>
+
+    <div class="charts-grid" style="margin-bottom:16px">
+      <div class="chart-card wide">
+        <div class="chart-title">Distribución por Semáforo de Aging</div>
+        <div class="chart-wrap" style="height:180px"><canvas id="ch-v2-semaforo"></canvas></div>
+      </div>
+    </div>
+
     <div class="table-wrap">
       <div class="table-header-bar">
         <div class="table-title">Semáforo de Aging</div>
-        <div class="table-count">${d.length} vacantes</div>
+        <div class="table-count">${d.length} vacantes · ordenadas por antigüedad</div>
       </div>
       ${d.length === 0 ? '<div class="empty">Sin resultados para los filtros seleccionados</div>' : `
       <div style="overflow-x:auto">
@@ -1189,6 +1210,29 @@ function renderV2() {
     </div>
   `;
   document.getElementById('v2-content').innerHTML = html;
+
+  if (chartV2Semaforo) { chartV2Semaforo.destroy(); chartV2Semaforo = null; }
+
+  chartV2Semaforo = new Chart(document.getElementById('ch-v2-semaforo'), {
+    type: 'bar',
+    data: {
+      labels: ['🟢 En tiempo (≤30d)', '🟡 Atención (31-60d)', '🔴 Urgente (61-90d)', '🚨 Crítico (91d+)'],
+      datasets: [{
+        data: [verde, amarillo, naranja, critico],
+        backgroundColor: [COLORS.green, COLORS.yellow, COLORS.orange, COLORS.red],
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      ...chartDefaults(),
+      indexAxis: 'y',
+      plugins: { ...chartDefaults().plugins, legend: { display: false } },
+      scales: {
+        x: { ...axisStyle(), beginAtZero: true, ticks: { ...axisStyle().ticks, stepSize: 1 } },
+        y: { ...axisStyle() }
+      }
+    }
+  });
 }
 
 function getAgingClass(dias) {
