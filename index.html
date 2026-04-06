@@ -725,18 +725,17 @@
     </div>
 
     <div class="config-box">
-      <div class="config-title">🔗 URL del archivo en OneDrive</div>
+      <div class="config-title">📂 Fuente de datos</div>
       <div class="config-desc">
-        Pegá el link directo de descarga de tu Excel en OneDrive.<br>
-        Para obtenerlo: en OneDrive, hacé clic derecho en el archivo → <strong>Copiar vínculo</strong> → asegurate de que diga "Cualquier persona con el vínculo puede ver".<br>
-        Luego reemplazá el final de la URL: cambiá <code>?e=...</code> por <code>?download=1</code>.
+        El dashboard carga el Excel directamente desde el repositorio de GitHub.<br>
+        Para actualizar los datos: subí el archivo Excel actualizado a GitHub reemplazando el existente.<br>
+        El nombre del archivo debe mantenerse exactamente como: <code>Seguimiento de Vacantes.xlsx</code>
       </div>
-      <div class="config-row">
-        <div class="config-input-wrap">
-          <input type="text" id="onedrive-url" placeholder="https://1drv.ms/x/... o https://onedrive.live.com/..." value="">
-        </div>
-        <button class="btn-primary" onclick="saveAndLoad()">Guardar y Cargar</button>
-        <button class="btn-secondary" onclick="loadDemo()">Usar demo local</button>
+      <div style="margin-top:12px;display:flex;gap:10px">
+        <button class="btn-primary" onclick="saveAndLoad()">🔄 Recargar datos ahora</button>
+        <a href="https://github.com/juanpisanchez/talent-dashboard-grupo-cober" target="_blank">
+          <button class="btn-secondary">Ver repositorio en GitHub</button>
+        </a>
       </div>
       <div id="config-msg"></div>
     </div>
@@ -802,28 +801,20 @@ function switchView(id) {
 }
 
 // ════════════════════════════════════════════
-// ONEDRIVE LOAD
+// CARGA DESDE GITHUB
 // ════════════════════════════════════════════
+const GITHUB_FILE_URL = 'https://raw.githubusercontent.com/juanpisanchez/talent-dashboard-grupo-cober/main/Seguimiento%20de%20Vacantes.xlsx';
+
 function saveAndLoad() {
-  const url = document.getElementById('onedrive-url').value.trim();
-  if (!url) { showMsg('Ingresá una URL válida.', 'error'); return; }
-  localStorage.setItem('cober_onedrive_url', url);
-  loadFromUrl(url);
+  showMsg('Cargando desde GitHub...', 'ok');
+  loadFromUrl(GITHUB_FILE_URL);
 }
 
 function loadFromUrl(url) {
-  showMsg('Cargando...', 'ok');
-  document.getElementById('conn-status').textContent = 'Conectando...';
+  const connEl = document.getElementById('conn-status');
+  if (connEl) connEl.textContent = 'Conectando...';
 
-  // Convert OneDrive share links to direct download
-  let downloadUrl = url;
-  if (url.includes('1drv.ms') || url.includes('onedrive.live.com')) {
-    if (!url.includes('download=1')) {
-      downloadUrl = url.replace(/\?.*$/, '') + '?download=1';
-    }
-  }
-
-  fetch(downloadUrl)
+  fetch(url)
     .then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.arrayBuffer();
@@ -832,20 +823,19 @@ function loadFromUrl(url) {
       const wb = XLSX.read(buf, { type: 'array', cellDates: true });
       processWorkbook(wb);
       showMsg('✓ Datos cargados correctamente.', 'ok');
-      document.getElementById('conn-status').innerHTML =
-        `<span style="color:var(--green)">✓ Conectado</span> · ${DATA.length} registros · ${new Date().toLocaleString('es-AR')}`;
+      if (connEl) connEl.innerHTML =
+        `<span style="color:var(--green)">✓ Conectado · GitHub</span> · ${DATA.length} registros · ${new Date().toLocaleString('es-AR')}`;
       document.getElementById('lastUpdated').textContent =
         `Actualizado: ${new Date().toLocaleTimeString('es-AR')}`;
     })
     .catch(err => {
-      showMsg(`Error al cargar: ${err.message}. Revisá que el link sea público y tenga ?download=1 al final.`, 'error');
-      document.getElementById('conn-status').innerHTML = `<span style="color:var(--red)">✗ Error de conexión</span>`;
+      showMsg(`Error al cargar: ${err.message}`, 'error');
+      if (connEl) connEl.innerHTML = `<span style="color:var(--red)">✗ Error de conexión</span>`;
     });
 }
 
 function loadDemo() {
-  // Use existing data if already loaded via file
-  showMsg('Usando datos cargados localmente.', 'ok');
+  saveAndLoad();
 }
 
 function showMsg(text, type) {
@@ -1470,19 +1460,7 @@ function countBy(arr, key) {
 // INIT
 // ════════════════════════════════════════════
 window.addEventListener('load', () => {
-  // Try to load from saved URL
-  const saved = localStorage.getItem('cober_onedrive_url');
-  if (saved) {
-    document.getElementById('onedrive-url').value = saved;
-    loadFromUrl(saved);
-  } else {
-    document.getElementById('v1-content').innerHTML =
-      `<div class="empty" style="height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
-        <div style="font-size:32px">📂</div>
-        <div>Configurá la URL de OneDrive para cargar los datos.</div>
-        <button class="btn-primary" onclick="switchViewDirect('v5')">Ir a Configuración</button>
-      </div>`;
-  }
+  loadFromUrl(GITHUB_FILE_URL);
 });
 
 function switchViewDirect(id) {
